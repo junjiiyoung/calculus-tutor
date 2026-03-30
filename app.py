@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
@@ -12,9 +12,6 @@ st.set_page_config(
 )
 
 # ── 비밀번호 잠금 ────────────────────────────────────────────────────────────
-# 수업 시작 전 이 비밀번호를 칠판에 적어주세요.
-# 수업이 끝나면 다른 비밀번호로 바꾸면 학생들이 더 이상 접속 못합니다.
-# 바꾸는 방법: GitHub에서 app.py 열기 → 아래 숫자 변경 → Commit
 CLASS_PASSWORD = "1234"   # ← 수업마다 이 숫자를 바꾸세요!
 
 if "unlocked" not in st.session_state:
@@ -30,15 +27,15 @@ if not st.session_state.unlocked:
             st.rerun()
         else:
             st.error("❌ 비밀번호가 틀렸습니다. 선생님께 확인하세요.")
-    st.stop()   # 비밀번호 맞기 전까지는 아래 코드 실행 안 됨
+    st.stop()
 
 # ── 이 아래부터는 비밀번호 통과한 학생만 볼 수 있음 ──────────────────────────
 
 st.title("📐 미적분 AI 튜터")
 st.caption("궁금한 미적분 개념을 자유롭게 질문하세요! 질문이 끝나면 '대화 종료' 버튼을 눌러주세요.")
 
-# ── Gemini API 초기화 ────────────────────────────────────────────────────────
-genai.configure(api_key=st.secrets["gemini"]["api_key"])
+# ── Gemini API 초기화 (새 패키지) ────────────────────────────────────────────
+client = genai.Client(api_key=st.secrets["gemini"]["api_key"])
 
 SYSTEM_PROMPT = """당신은 고등학교·대학교 미적분 전문 튜터입니다.
 학생들이 미적분 개념(극한, 미분, 적분, 테일러 급수 등)을 쉽게 이해할 수 있도록 도와주세요.
@@ -54,9 +51,10 @@ def get_sheet():
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-    client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(st.secrets["sheets"]["spreadsheet_id"])
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    gc = gspread.authorize(creds)
+    spreadsheet = gc.open_by_key(st.secrets["sheets"]["spreadsheet_id"])
     return spreadsheet.sheet1
 
 def save_to_sheet(student_id, name, chat_history, learned):
@@ -99,7 +97,7 @@ for msg in st.session_state.chat_history:
         with st.chat_message("assistant", avatar="📐"):
             st.write(msg["content"])
 
-# ── 채팅 진행 중 (종료 전) ───────────────────────────────────────────────────
+# ── 채팅 진행 중 ─────────────────────────────────────────────────────────────
 if not st.session_state.chat_ended and not st.session_state.submitted:
 
     user_input = st.chat_input("미적분에 대해 무엇이든 물어보세요! 추가 질문도 계속 할 수 있어요.")
@@ -115,19 +113,17 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
             with st.chat_message("assistant", avatar="📐"):
                 with st.spinner("생각하는 중..."):
                     try:
-                        model = genai.GenerativeModel("gemini-1.5-flash-latest")
-                        gemini_history = []
-                        for msg in st.session_state.chat_history[:-1]:
-                            gemini_history.append({
-                                "role": msg["role"],
-                                "parts": [msg["content"]]
-                            })
-                        chat = model.start_chat(history=gemini_history)
-                        if len(gemini_history) == 0:
-                            full_input = SYSTEM_PROMPT + "\n\n학생 질문: " + user_input
-                        else:
-                            full_input = user_input
-                        response = chat.send_message(full_input)
+                        # 이전 대화 기록 포함해서 메시지 구성
+                        messages = [{"role": "user", "parts": [{"text": SYSTEM_PROMPT}]},
+                                    {"role": "model", "parts": [{"text": "네, 미적분 튜터로서 도와드리겠습니다!"}]}]
+                        for msg in st.session_state.chat_history:
+                            role = "user" if msg["role"] == "user" else "model"
+                            messages.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash-preview-04-17",
+                            contents=messages
+                        )
                         ai_reply = response.text
                         st.write(ai_reply)
                         st.session_state.chat_history.append(
@@ -136,7 +132,6 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
                     except Exception as e:
                         st.error(f"API 오류가 발생했습니다: {e}")
 
-    # 대화가 한 번 이상 이뤄진 경우에만 종료 버튼 표시
     if len(st.session_state.chat_history) >= 2:
         st.divider()
         col_end, col_reset = st.columns([3, 1])
@@ -176,7 +171,7 @@ if st.session_state.chat_ended and not st.session_state.submitted:
                         st.session_state.submitted = True
                         st.rerun()
                     except Exception as e:
-                        st.error(f"저장 오류: {e}\n\ncredentials.json 파일과 시트 공유 설정을 다시 확인해주세요.")
+                        st.error(f"저장 오류: {e}")
     with col_back:
         if st.button("↩️ 질문 더 하기", use_container_width=True):
             st.session_state.chat_ended = False
