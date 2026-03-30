@@ -34,7 +34,7 @@ if not st.session_state.unlocked:
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
 # 모델 설정 (가장 안정적인 1.5-flash 모델)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash-002')
 
 SYSTEM_PROMPT = """당신은 고등학교·대학교 미적분 전문 튜터입니다.
 학생들이 미적분 개념을 쉽게 이해할 수 있도록 도와주세요.
