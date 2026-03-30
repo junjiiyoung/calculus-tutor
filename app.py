@@ -156,8 +156,16 @@ if st.session_state.chat_ended and not st.session_state.submitted:
                 except Exception as e:
                     st.error(f"저장 중 오류 발생: {e}")
 
+# ── 제출 완료 화면 (코드의 가장 마지막 부분입니다) ─────────────────────────────────
 if st.session_state.submitted:
     st.success("🎉 제출 완료! 선생님 구글 시트에 기록되었습니다.")
     st.balloons()
+    st.info(f"**{student_name}** 학생, 오늘 수업도 수고했어요! 😊")
+    
     if st.button("새 세션 시작 (다음 학생)"):
-        for key in ["chat_history", "
+        # 세션 상태 초기화
+        keys_to_reset = ["chat_history", "chat_ended", "submitted", "unlocked"]
+        for key in keys_to_reset:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
