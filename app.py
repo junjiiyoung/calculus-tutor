@@ -115,7 +115,7 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
             with st.chat_message("assistant", avatar="📐"):
                 with st.spinner("생각하는 중..."):
                     try:
-                        model = genai.GenerativeModel("gemini-1.5-flash")
+                        model = genai.GenerativeModel("gemini-2.0-flash")
                         gemini_history = []
                         for msg in st.session_state.chat_history[:-1]:
                             gemini_history.append({
