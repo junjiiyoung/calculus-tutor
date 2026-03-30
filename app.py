@@ -103,34 +103,34 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
 
     user_input = st.chat_input("미적분에 대해 무엇이든 물어보세요! 추가 질문도 계속 할 수 있어요.")
 
-   if user_input:
-    if not student_id or not student_name:
-        st.warning("⚠️ 먼저 학번과 이름을 입력해주세요!")
-    else:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.write(user_input)
+    if user_input:
+        if not student_id or not student_name:
+            st.warning("⚠️ 먼저 학번과 이름을 입력해주세요!")
+        else:
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            with st.chat_message("user"):
+                st.write(user_input)
 
-        with st.chat_message("assistant", avatar="📐"):
-            with st.spinner("생각하는 중..."):
-                try:
-                    # 대화 맥락 유지 (역대 대화 기록 전달)
-                    history = []
-                    for msg in st.session_state.chat_history[:-1]:
-                        role = "user" if msg["role"] == "user" else "model"
-                        history.append({"role": role, "parts": [msg["content"]]})
-                    
-                    # 채팅 시작
-                    chat = model.start_chat(history=history)
-                    # 시스템 프롬프트는 첫 질문에만 살짝 섞거나 설정 시 넣습니다.
-                    response = chat.send_message(user_input)
-                    
-                    ai_reply = response.text
-                    st.write(ai_reply)
-                    st.session_state.chat_history.append({"role": "assistant", "content": ai_reply})
-                except Exception as e:
-                    st.error(f"API 오류가 발생했습니다: {e}")
+            with st.chat_message("assistant", avatar="📐"):
+                with st.spinner("생각하는 중..."):
+                    try:
+                        # 대화 맥락 유지 (역대 대화 기록 전달)
+                        history = []
+                        for msg in st.session_state.chat_history[:-1]:
+                            role = "user" if msg["role"] == "user" else "model"
+                            history.append({"role": role, "parts": [msg["content"]]})
+                        
+                        # 채팅 시작
+                        chat = model.start_chat(history=history)
+                        response = chat.send_message(user_input)
+                        
+                        ai_reply = response.text
+                        st.write(ai_reply)
+                        st.session_state.chat_history.append({"role": "assistant", "content": ai_reply})
+                    except Exception as e:
+                        st.error(f"API 오류가 발생했습니다: {e}")
 
+    # 이 부분도 위쪽 if 문과 줄이 맞아야 합니다.
     if len(st.session_state.chat_history) >= 2:
         st.divider()
         col_end, col_reset = st.columns([3, 1])
