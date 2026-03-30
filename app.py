@@ -114,32 +114,27 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
             # AI 응답 생성
             with st.spinner("생각하는 중..."):
                     try:
-                        # 1. 시스템 프롬프트를 포함한 대화 기록 재구성 (표준 형식)
-                        # google-generativeai는 'parts' 안에 리스트가 아닌 문자열이 바로 들어가야 안전합니다.
-                        formatted_history = []
-                        
-                        # 역대 대화 기록 추가
+                        # 1. 대화 맥락을 하나의 텍스트로 합치기 (오류 방지용)
+                        # 시스템 프롬프트와 이전 대화, 현재 질문을 하나로 묶습니다.
+                        full_prompt = f"{SYSTEM_PROMPT}\n\n"
                         for m in st.session_state.chat_history[:-1]:
-                            role = "user" if m["role"] == "user" else "model"
-                            formatted_history.append({
-                                "role": role,
-                                "parts": [m["content"]]
-                            })
+                            role = "학생" if m["role"] == "user" else "AI"
+                            full_prompt += f"{role}: {m['content']}\n"
+                        full_prompt += f"학생의 새로운 질문: {user_input}"
+
+                        # 2. 모델에게 직접 생성 요청 (가장 확실한 v1 경로 사용)
+                        # 라이브러리가 모델 이름을 찾지 못할 때를 대비해 명시적으로 호출합니다.
+                        response = model.generate_content(full_prompt)
                         
-                        # 2. 채팅 세션 시작 (시스템 명령은 모델 선언 시점에 넣는 것이 가장 좋으나, 
-                        # 현재 구조에서는 첫 질문에 병합하거나 아래처럼 시작합니다)
-                        chat_session = model.start_chat(history=formatted_history)
-                        
-                        # 3. 메시지 전송 (SYSTEM_PROMPT를 지시사항으로 추가)
-                        full_instruction = f"{SYSTEM_PROMPT}\n\n학생의 질문: {user_input}"
-                        response = chat_session.send_message(full_instruction)
-                        
-                        ai_reply = response.text
-                        st.write(ai_reply)
-                        st.session_state.chat_history.append({"role": "assistant", "content": ai_reply})
-                        
+                        if response.text:
+                            ai_reply = response.text
+                            st.write(ai_reply)
+                            st.session_state.chat_history.append({"role": "assistant", "content": ai_reply})
+                        else:
+                            st.error("AI가 답변을 생성하지 못했습니다. 다시 시도해주세요.")
+
                     except Exception as e:
-                        # 만약 여기서도 404가 난다면 모델 이름을 재확인합니다.
+                        # 여전히 404가 난다면, 모델 이름을 'gemini-1.5-flash-latest'로 바꿔보세요.
                         st.error(f"API 오류가 발생했습니다: {e}")
                         
     # 질문 종료 버튼 (채팅 내역이 있을 때만 표시)
