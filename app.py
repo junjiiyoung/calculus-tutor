@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
@@ -103,35 +103,33 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
 
     user_input = st.chat_input("미적분에 대해 무엇이든 물어보세요! 추가 질문도 계속 할 수 있어요.")
 
-    if user_input:
-        if not student_id or not student_name:
-            st.warning("⚠️ 먼저 학번과 이름을 입력해주세요!")
-        else:
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
-            with st.chat_message("user"):
-                st.write(user_input)
+   if user_input:
+    if not student_id or not student_name:
+        st.warning("⚠️ 먼저 학번과 이름을 입력해주세요!")
+    else:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.write(user_input)
 
-            with st.chat_message("assistant", avatar="📐"):
-                with st.spinner("생각하는 중..."):
-                    try:
-                        # 이전 대화 기록 포함해서 메시지 구성
-                        messages = [{"role": "user", "parts": [{"text": SYSTEM_PROMPT}]},
-                                    {"role": "model", "parts": [{"text": "네, 미적분 튜터로서 도와드리겠습니다!"}]}]
-                        for msg in st.session_state.chat_history:
-                            role = "user" if msg["role"] == "user" else "model"
-                            messages.append({"role": role, "parts": [{"text": msg["content"]}]})
-
-                        response = client.models.generate_content(
-                            model="gemini-1.5-flash",
-                            contents=messages
-                        )
-                        ai_reply = response.text
-                        st.write(ai_reply)
-                        st.session_state.chat_history.append(
-                            {"role": "assistant", "content": ai_reply}
-                        )
-                    except Exception as e:
-                        st.error(f"API 오류가 발생했습니다: {e}")
+        with st.chat_message("assistant", avatar="📐"):
+            with st.spinner("생각하는 중..."):
+                try:
+                    # 대화 맥락 유지 (역대 대화 기록 전달)
+                    history = []
+                    for msg in st.session_state.chat_history[:-1]:
+                        role = "user" if msg["role"] == "user" else "model"
+                        history.append({"role": role, "parts": [msg["content"]]})
+                    
+                    # 채팅 시작
+                    chat = model.start_chat(history=history)
+                    # 시스템 프롬프트는 첫 질문에만 살짝 섞거나 설정 시 넣습니다.
+                    response = chat.send_message(user_input)
+                    
+                    ai_reply = response.text
+                    st.write(ai_reply)
+                    st.session_state.chat_history.append({"role": "assistant", "content": ai_reply})
+                except Exception as e:
+                    st.error(f"API 오류가 발생했습니다: {e}")
 
     if len(st.session_state.chat_history) >= 2:
         st.divider()
