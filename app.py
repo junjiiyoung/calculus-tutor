@@ -121,7 +121,7 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
                             messages.append({"role": role, "parts": [{"text": msg["content"]}]})
 
                         response = client.models.generate_content(
-                            model="gemini-2.5-flash-preview-04-17",
+                            model="gemini-1.5-flash",
                             contents=messages
                         )
                         ai_reply = response.text
