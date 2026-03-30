@@ -35,8 +35,10 @@ st.title("📐 미적분 AI 튜터")
 st.caption("궁금한 미적분 개념을 자유롭게 질문하세요! 질문이 끝나면 '대화 종료' 버튼을 눌러주세요.")
 
 # ── Gemini API 초기화 (새 패키지) ────────────────────────────────────────────
-client = genai.Client(api_key=st.secrets["gemini"]["api_key"])
-
+client = genai.Client(
+    api_key=st.secrets["gemini"]["api_key"],
+    http_options={'api_version': 'v1'} 
+)
 SYSTEM_PROMPT = """당신은 고등학교·대학교 미적분 전문 튜터입니다.
 학생들이 미적분 개념(극한, 미분, 적분, 테일러 급수 등)을 쉽게 이해할 수 있도록 도와주세요.
 - 수식은 텍스트로 명확하게 설명하세요 (예: x^2, dy/dx)
@@ -121,7 +123,7 @@ if not st.session_state.chat_ended and not st.session_state.submitted:
                             messages.append({"role": role, "parts": [{"text": msg["content"]}]})
 
                         response = client.models.generate_content(
-                            model="gemini-1.5-flash",
+                            model="models/gemini-1.5-flash",
                             contents=messages
                         )
                         ai_reply = response.text
